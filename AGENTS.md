@@ -7,7 +7,7 @@ This repository deploys Hysteria 2 from reviewed, pinned upstream source.
   certificates, URIs, QR codes, backups, `.env` files, or real host inventory.
 - Audit a target host before mutation. Preserve mail, monitoring, and unrelated
   VPN services. TCP and UDP ports are separate resources.
-- Keep `versions.env` tag and SHA changes together and verify the upstream tag.
+- Keep `versions.conf` tag and SHA changes together and verify the upstream tag.
 - Shell files use `#!/usr/bin/env bash`, `set -euo pipefail`, and pass ShellCheck.
 - Changes to client state must be locked, validated, atomic, and rolled back if
   Hysteria does not restart cleanly.

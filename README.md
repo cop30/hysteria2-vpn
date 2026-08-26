@@ -7,7 +7,7 @@ are generated locally on that VPS and are excluded from Git.
 ## What is different
 
 - The upstream release and immutable commit are committed together in
-  `versions.env`; an ordinary redeploy cannot silently upgrade the server.
+  `versions.conf`; an ordinary redeploy cannot silently upgrade the server.
 - Every device gets its own username and password. Revoking one device does not
   invalidate the others.
 - User changes are locked, rendered atomically, smoke-tested in an isolated
@@ -77,7 +77,7 @@ Backups contain all credentials. Store them encrypted and never commit them.
 Upgrades are code changes, not a side effect of redeploying:
 
 1. Review the new upstream release.
-2. Update both values in `versions.env`.
+2. Update both values in `versions.conf`.
 3. Run tests and ShellCheck.
 4. Back up the server state.
 5. Run `sudo ./deploy.sh` and verify `sudo ./status.sh`.

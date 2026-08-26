@@ -6,9 +6,8 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "${ROOT}"
 # shellcheck source=lib/common.sh
 source "${ROOT}/lib/common.sh"
-# shellcheck source-path=SCRIPTDIR
-# shellcheck source=versions.env
-source "${ROOT}/versions.env"
+# shellcheck source=versions.conf
+source "${ROOT}/versions.conf"
 
 require_root
 for cmd in docker git openssl curl ss awk sed flock; do

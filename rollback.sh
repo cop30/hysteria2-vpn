@@ -20,7 +20,7 @@ flock -x 9
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 install -d -m 0700 "${ROOT}/backups"
 tar -C "${ROOT}" -czf "${ROOT}/backups/pre-rollback-${timestamp}.tar.gz" \
-  state clients docker-compose.yml docker-compose.yml.previous versions.env
+  state clients docker-compose.yml docker-compose.yml.previous versions.conf
 chmod 0600 "${ROOT}/backups/pre-rollback-${timestamp}.tar.gz"
 
 cp -a docker-compose.yml docker-compose.yml.rollback-current
