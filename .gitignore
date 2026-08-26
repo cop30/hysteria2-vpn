@@ -1,0 +1,15 @@
+/clients/
+/state/
+/backups/
+/docker-compose.yml
+/docker-compose.yml.previous
+/docker-compose.yml.rollback-current
+*.bak
+*.env
+*.key
+*.crt
+*.pem
+*.hy2
+*.png
+*.hy2.bak
+*.png.bak

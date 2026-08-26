@@ -1,0 +1,21 @@
+services:
+  hysteria2:
+    image: __IMAGE__
+    container_name: hysteria2
+    restart: unless-stopped
+    ports:
+      - "__PORT__:8443/udp"
+    command: ["server", "--config", "/etc/hysteria/server.yaml"]
+    volumes:
+      - ./state/server.yaml:/etc/hysteria/server.yaml:ro
+      - ./state/server.crt:/etc/hysteria/server.crt:ro
+      - ./state/server.key:/etc/hysteria/server.key:ro
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 256m

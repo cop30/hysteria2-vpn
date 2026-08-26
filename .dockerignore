@@ -1,0 +1,16 @@
+.git
+.github
+.agents
+.codex
+state
+clients
+backups
+docker-compose.yml
+docker-compose.yml.previous
+*.bak
+*.env
+*.key
+*.crt
+*.pem
+*.hy2
+*.png
