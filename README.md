@@ -1,103 +1,313 @@
-# Hysteria2 self-hosted stack
+**English** | [Русский](README.ru.md)
 
-A small, auditable Hysteria 2 server project for Ubuntu. Hysteria is compiled
-from a reviewed upstream commit on the VPS. Server secrets and client profiles
-are generated locally on that VPS and are excluded from Git.
+# Hysteria 2 self-hosted stack
 
-## What is different
+This project builds Hysteria 2 from a pinned upstream commit on an Ubuntu VPS
+and runs it with Docker Compose. Server secrets, client URIs, QR codes and
+backups are generated on the VPS and excluded from Git.
 
-- The upstream release and immutable commit are committed together in
-  `versions.conf`; an ordinary redeploy cannot silently upgrade the server.
-- Every device gets its own username and password. Revoking one device does not
-  invalidate the others.
-- User changes are locked, rendered atomically, smoke-tested in an isolated
-  no-network container, and rolled back if restart verification fails.
-- The container is read-only, drops every Linux capability, uses
+## Properties
+
+- The release and immutable commit are pinned together in `versions.conf`.
+- Every device gets a separate username and password.
+- Candidate configurations are tested in an isolated no-network container and
+  failed changes are rolled back.
+- The service container is read-only, drops all Linux capabilities, enables
   `no-new-privileges`, and has memory/PID limits.
-- Existing TCP services may keep the same numeric port: Hysteria uses UDP.
+- Hysteria can use `443/udp` while another service uses `443/tcp`.
 - UFW cleanup removes a rule only when this project created it.
+
+Defaults: public `443/udp`, Salamander obfuscation, IPv4 egress, and a
+self-signed certificate whose SHA-256 pin is included in every client URI.
+
+## Architecture
+
+```text
+Internet client
+      │ Hysteria 2 + QUIC + Salamander, UDP/<public port>
+      ▼
+UFW / provider firewall
+      ▼
+Docker publish: <public port>/udp → 8443/udp
+      ▼
+read-only hysteria2 container → direct IPv4 Internet egress
+```
+
+| Item | Purpose | Secret |
+|---|---|---|
+| `versions.conf` | pinned release and commit | no |
+| `Dockerfile` | build Hysteria from source | no |
+| `docker-compose.yml.tmpl` | container limits and launch | no |
+| `state/` | certificate, key, auth, and runtime configuration | **yes** |
+| `clients/` | client URIs and QR codes | **yes** |
+| `backups/` | local backup archives | **yes** |
+
+`state/`, `clients/`, `backups/`, and generated `docker-compose.yml` are
+excluded from Git.
 
 ## Requirements
 
-- Ubuntu 24.04 or newer
-- root or sudo
-- Docker Engine with Compose v2
-- `git`, `curl`, `openssl`, `iproute2`, `util-linux`
-- about 1.5 GB RAM or swap while compiling; runtime use is small
-- the selected UDP port allowed in both UFW and the provider firewall
+- Ubuntu 24.04 or newer, root or sudo
+- `git`, `curl`, `openssl`, `iproute2`, and `util-linux`
+- Docker Engine, Compose v2, and buildx
+- `qrencode` for QR PNG files and terminal QR output
+- the selected UDP port allowed by both host and provider firewalls
+- about 1.5 GB RAM or swap during compilation; runtime use is much lower
 
-`qrencode` is optional. Without it, `.hy2` URI files are still created.
+Inspect capacity before building:
+
+```bash
+free -h
+df -h /
+sudo docker system df
+```
+
+### Install Docker
+
+```bash
+sudo ./docker-install.sh
+```
+
+The installer is adapted from the MIT-licensed
+[`seb0ch/vpn`](https://github.com/seb0ch/vpn) installer. It installs
+`docker.io`, `docker-compose-v2`, and `docker-buildx` from Ubuntu's own archive,
+adds no third-party apt repository or signing key, skips installed components,
+and refuses to mix Ubuntu `docker.io` with a detected
+`docker-ce`/`containerd.io` stack. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+### Install QR support
+
+The server and `.hy2` files work without `qrencode`, but no PNG or terminal QR
+will be produced:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y qrencode
+qrencode --version
+```
 
 ## Deploy
 
 ```bash
 git clone https://github.com/cop30/hysteria2-vpn.git
 cd hysteria2-vpn
+sudo ./docker-install.sh       # only when Docker is absent
+sudo apt-get install -y qrencode
 sudo INITIAL_CLIENT=iphone ./deploy.sh
 ```
 
-Defaults: UDP `443`, IPv4-only server egress, Salamander obfuscation, a
-self-signed certificate pinned in every client URI, and an automatically
-detected public IPv4. Override discovery explicitly when needed:
+`deploy.sh` verifies dependencies and the pinned commit, generates server and
+initial-client secrets, builds from source, validates the candidate config,
+opens the UDP port in active UFW, starts Compose, checks the listener, writes a
+non-empty `.hy2`, and—when `qrencode` exists—writes a checked PNG and prints the
+secret QR in the terminal.
+
+Override endpoint discovery when required:
 
 ```bash
-sudo PUBLIC_HOST=vpn.example.com HYSTERIA_PORT=443 TLS_SNI=vpn.example.com \
-  INITIAL_CLIENT=iphone ./deploy.sh
+sudo PUBLIC_HOST=vpn.example.com HYSTERIA_PORT=443 \
+  TLS_SNI=vpn.example.com INITIAL_CLIENT=iphone ./deploy.sh
 ```
-
-Heavy downloads and compilation happen on the VPS. Generated files are in
-`state/` and `clients/`; both are secret and gitignored.
 
 ## Clients
 
 ```bash
 sudo ./add-client.sh windows
-sudo ./add-client.sh iphone
+sudo ./add-client.sh iphone-15
 sudo ./remove-client.sh old-phone
 ```
 
-Import `clients/<name>.hy2`, or scan `clients/<name>.png` when `qrencode` is
-installed. For iOS mobile networks, a client keepalive of 10 seconds is a good
-starting point. Prefer IPv4 when the server has no verified IPv6 egress.
+Names are 1–32 ASCII letters, digits, `_`, or `-`. Give every device a separate
+client. Artifacts are stored with mode `0600` under the gitignored `clients/`
+directory. With `qrencode`, client creation writes a PNG and immediately prints
+the QR in the terminal.
+
+Show an existing client again:
+
+```bash
+sudo qrencode -t ANSIUTF8 -r clients/iphone.hy2
+```
+
+Treat `.hy2` and QR files as full credentials. Never paste them into chat, Git,
+logs, or documentation. A 10-second keepalive is a reasonable starting point
+for iOS mobile networks. Enable client IPv6 only after verifying VPS IPv6
+egress.
+
+### Shadowrocket on iPhone: field-tested stability profile
+
+On a real iPhone, intermittent connectivity was resolved by the combination of
+`Up Mb/s = 100`, `Down Mb/s = 100`, and `Keepalive = 10`. This is a confirmed
+result for one connection, not a universal value for every carrier:
+
+1. Open the Hysteria 2 node editor and set `Keepalive` to `10` seconds.
+2. To reproduce the tested profile, set `Up Mb/s = 100` and
+   `Down Mb/s = 100`.
+3. Save the node and reconnect the VPN.
+
+Brutal treats the configured bandwidth as a target and compensates for loss by
+sending extra data. Hysteria's official documentation warns that setting it
+above the network's real capacity causes congestion, wasted traffic, and an
+unstable connection. A lower value is valid and acts as a speed limit. Treat
+`100/100` as tested for this specific connection; reduce it to a sustainable
+rate on a slower or congested network instead of copying it blindly.
+
+If explicit limits make the connection worse, return bandwidth to blank/auto;
+the client should then use non-Brutal congestion control (BBR by default) when
+Shadowrocket follows Hysteria core behavior.
+
+Routing and IPv6 were not part of the confirmed fix. IPv6 should still remain
+disabled until VPS IPv6 egress is verified. Keep Shadowrocket updated through
+the App Store. Do not change only the client
+port: `443/udp` must match the server, URI, UFW, and provider firewall. Do not
+disable Salamander/obfuscation for this project's profile; the server expects
+the matching secret, so a one-sided change breaks the connection.
 
 ## Operations
 
 ```bash
 sudo ./status.sh
+sudo docker compose logs --tail 100 hysteria2
 sudo ./backup.sh /secure/off-repo/path/hysteria2-backup.tar.gz
-sudo ./deploy.sh                 # idempotent; does not rotate secrets
-sudo ./rollback.sh               # switch to the previous checked deployment
-sudo ./cleanup.sh                # destructive; requires hostname confirmation
+sudo ./deploy.sh
+sudo ./rollback.sh
+sudo ./cleanup.sh
 ```
 
-Backups contain all credentials. Store them encrypted and never commit them.
+A local listener does not prove that the provider firewall passes UDP; test
+from an external client. Redeploy preserves secrets and clients. Upgrading
+Hysteria requires an explicit reviewed release+SHA change in `versions.conf`, a
+backup, tests, deploy, and status/client verification.
 
-## Upgrade policy
+### Why both release and commit are pinned
 
-Upgrades are code changes, not a side effect of redeploying:
+`HYSTERIA_RELEASE` is the human-readable upstream tag, such as `app/v2.12.2`.
+`HYSTERIA_COMMIT` is the exact 40-character Git SHA of its source. A tag can in
+principle be moved; a SHA alone does not identify the intended named release.
+The pair provides both intent and immutable identity.
 
-1. Review the new upstream release.
-2. Update both values in `versions.conf`.
-3. Run tests and ShellCheck.
-4. Back up the server state.
-5. Run `sudo ./deploy.sh` and verify `sudo ./status.sh`.
+During deploy, the script resolves the tag from the official repository and
+requires its SHA to match `versions.conf`; the Dockerfile then checks out that
+exact SHA. A new upstream release therefore does not change an ordinary
+`git pull` plus redeploy. This is deliberate protection, not an automatic
+updater.
 
-The previous Compose/config pair and older image remain available for
-`rollback.sh`. Before switching, it creates a secret local safety archive. A
-successful rollback keeps the replaced version as the next rollback point, so
-the operation can be reversed.
+### Upgrade the Hysteria server
+
+Use `app/vX.Y.Z` below as a placeholder, not as a literal version.
+
+1. Review the official
+   [Hysteria Releases](https://github.com/HyNetworks/hysteria/releases),
+   especially configuration and client-compatibility changes.
+2. Resolve the annotated tag, falling back to the lightweight tag only when the
+   first command returns nothing:
+
+   ```bash
+   git ls-remote https://github.com/HyNetworks/hysteria.git \
+     'refs/tags/app/vX.Y.Z^{}'
+   git ls-remote https://github.com/HyNetworks/hysteria.git \
+     'refs/tags/app/vX.Y.Z'
+   ```
+
+3. In a review branch, update both `HYSTERIA_RELEASE` and the full
+   `HYSTERIA_COMMIT` in `versions.conf`.
+4. Review the diff, run tests and ShellCheck, and commit only reviewed source.
+   Never add `state/`, `clients/`, `.env`, backups, or generated Compose files.
+5. On the VPS, back up first, then deploy the reviewed project commit:
+
+   ```bash
+   git pull --ff-only
+   sudo ./backup.sh /secure/path/hysteria2-before-upgrade.tar.gz
+   sudo ./deploy.sh
+   sudo ./status.sh
+   ```
+
+6. Verify a real external client. Retain the previous image and backup until
+   testing is complete; use `sudo ./rollback.sh` on failure.
+
+The new release gets a new Docker image tag. The certificate, Salamander
+secret, users, and `.hy2` profiles are preserved, so rescanning QR codes is
+normally unnecessary.
+
+### Client application updates
+
+This repository does **not** install or update Shadowrocket, Hiddify, or other
+client applications. Update them through their App Store, Google Play, or the
+specific application's official distribution channel. Updating the app does
+not require a new VPN password or QR code.
+
+Read upstream compatibility notes before upgrading the server. If a release
+requires a newer client core, update and test one client first, then upgrade
+the server. Server and client version numbers do not always have to match;
+upstream's stated compatibility is what matters.
+
+Backups contain every client password. Store them encrypted outside Git and
+test restoration. `rollback.sh` validates the previous configuration and makes
+a local safety backup before switching.
+
+Source builds grow Docker cache. Inspect before deleting anything:
+
+```bash
+df -h /
+sudo docker system df
+sudo docker builder prune -af   # unused build cache only
+```
+
+Do not run `docker system prune -a` without auditing other projects on the
+host. `cleanup.sh` is destructive and requires hostname confirmation; it does
+not prune the shared Docker build cache.
+
+## VPS security boundary
+
+This project hardens the Hysteria container and its own secret files. It does
+**not** fully harden the VPS, SSH, operating system, provider account, backups,
+or unrelated services.
+
+Before Internet exposure, configure a provider firewall and UFW with default
+deny inbound; verify SSH key login in a second session before disabling
+password, keyboard-interactive, and root login; validate config with `sshd -t`;
+configure Fail2ban for the actual SSH port; enable unattended security updates;
+keep encrypted off-host backups and test restore; monitor disk, RAM, container,
+and port health; and protect provider/GitHub accounts with MFA and offline
+recovery codes.
+
+Indicative SSH settings—not a drop-in recipe for every VPS—are:
+
+```text
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+X11Forwarding no
+```
+
+A mistake can lock you out. Keep the existing session open until a new
+key-only session succeeds.
+
+## Troubleshooting
+
+```bash
+sudo docker compose ps
+sudo docker compose logs --tail 200 hysteria2
+sudo ss -lunp | grep ':443'
+sudo ufw status
+command -v qrencode
+sudo test -s clients/iphone.hy2 && echo 'URI exists'
+```
+
+Remove URIs, passwords, QR codes, private keys, and all `state/`/`clients/`
+contents before sharing diagnostics.
 
 ## Tests
 
 ```bash
 sudo bash tests/run.sh
 sudo bash tests/smoke_image.sh local/hysteria2:v2.12.2
-shellcheck -x deploy.sh add-client.sh remove-client.sh status.sh backup.sh \
-  cleanup.sh rollback.sh lib/common.sh tests/*.sh
+shellcheck -x docker-install.sh deploy.sh add-client.sh remove-client.sh \
+  status.sh backup.sh cleanup.sh rollback.sh lib/common.sh tests/*.sh
 ```
 
-## Security boundary
+## License and credits
 
-This project secures the Hysteria process and its generated state. It does not
-replace SSH hardening, unattended security updates, Fail2ban, provider firewall
-rules, encrypted backups, or external monitoring.
+MIT licensed. The Docker installer and parts of the operational guidance are
+adapted from [`seb0ch/vpn`](https://github.com/seb0ch/vpn); see
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).

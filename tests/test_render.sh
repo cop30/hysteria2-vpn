@@ -35,6 +35,29 @@ render_client_uri "${TEST_DIR}/state" iphone \
   > "${TEST_DIR}/client.hy2"
 grep -q '203\.0\.113\.7:443' "${TEST_DIR}/client.hy2" || fail "client endpoint missing"
 
+mkdir -p "${TEST_DIR}/bin"
+cat > "${TEST_DIR}/bin/qrencode" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ ${1:-} == -s ]]; then
+  output="$4"
+  cat > "${output}"
+elif [[ ${1:-} == -t && ${2:-} == ANSIUTF8 ]]; then
+  printf 'TERMINAL-QR\n'
+  cat >/dev/null
+else
+  exit 2
+fi
+EOF
+chmod +x "${TEST_DIR}/bin/qrencode"
+qr_output="$(PATH="${TEST_DIR}/bin:${PATH}" write_client_artifacts "${TEST_DIR}" iphone \
+  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')"
+[[ -s ${TEST_DIR}/clients/iphone.hy2 ]] || fail "client URI artifact missing"
+[[ -s ${TEST_DIR}/clients/iphone.png ]] || fail "client QR PNG artifact missing"
+grep -q 'TERMINAL-QR' <<< "${qr_output}" || fail "terminal QR was not printed"
+[[ $(stat -c '%a' "${TEST_DIR}/clients/iphone.hy2") == 600 ]] || fail "client URI mode is not 0600"
+[[ $(stat -c '%a' "${TEST_DIR}/clients/iphone.png") == 600 ]] || fail "client QR mode is not 0600"
+
 printf 'bad name\t%s\n' \
   'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd' \
   >> "${TEST_DIR}/state/users.tsv"

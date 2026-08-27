@@ -123,16 +123,22 @@ render_client_uri() {
 }
 
 write_client_artifacts() {
-  local root="$1" client="$2" password="$3" uri_file
+  local root="$1" client="$2" password="$3" uri_file png_file
   uri_file="${root}/clients/${client}.hy2"
+  png_file="${root}/clients/${client}.png"
   install -d -m 0700 "${root}/clients"
   render_client_uri "${root}/state" "${client}" "${password}" > "${uri_file}"
   chmod 0600 "${uri_file}"
+  [[ -s ${uri_file} ]] || { log_error "Client URI was not created: ${uri_file}"; return 1; }
   if command -v qrencode >/dev/null 2>&1; then
-    qrencode -s 8 -o "${root}/clients/${client}.png" < "${uri_file}"
-    chmod 0600 "${root}/clients/${client}.png"
+    qrencode -s 8 -o "${png_file}" < "${uri_file}"
+    chmod 0600 "${png_file}"
+    [[ -s ${png_file} ]] || { log_error "Client QR image was not created: ${png_file}"; return 1; }
+    log_info "Client ${client}: scan this secret QR code:"
+    qrencode -t ANSIUTF8 < "${uri_file}"
   else
-    log_warn "qrencode is not installed; URI created without PNG."
+    log_warn "qrencode is not installed; URI created without PNG or terminal QR."
+    log_warn "Install it with: apt-get update && apt-get install -y qrencode"
   fi
 }
 
