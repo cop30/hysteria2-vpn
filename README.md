@@ -136,9 +136,10 @@ egress.
 
 ### Shadowrocket on iPhone: field-tested stability profile
 
-On a real iPhone, intermittent connectivity was resolved by the combination of
-`Up Mb/s = 100`, `Down Mb/s = 100`, and `Keepalive = 10`. This is a confirmed
-result for one connection, not a universal value for every carrier:
+On a real iPhone, `Up Mb/s = 100`, `Down Mb/s = 100`, and `Keepalive = 10`
+noticeably improved Shadowrocket stability but did not eliminate intermittent
+failures. Similar behavior occurred on Windows, so this is a mitigation rather
+than a confirmed final fix or a universal value for every carrier:
 
 1. Open the Hysteria 2 node editor and set `Keepalive` to `10` seconds.
 2. To reproduce the tested profile, set `Up Mb/s = 100` and
@@ -149,8 +150,9 @@ Brutal treats the configured bandwidth as a target and compensates for loss by
 sending extra data. Hysteria's official documentation warns that setting it
 above the network's real capacity causes congestion, wasted traffic, and an
 unstable connection. A lower value is valid and acts as a speed limit. Treat
-`100/100` as tested for this specific connection; reduce it to a sustainable
-rate on a slower or congested network instead of copying it blindly.
+`100/100` only as a value that improved this specific test; reduce it to a
+sustainable rate on a slower or congested network instead of copying it
+blindly.
 
 If explicit limits make the connection worse, return bandwidth to blank/auto;
 the client should then use non-Brutal congestion control (BBR by default) when
