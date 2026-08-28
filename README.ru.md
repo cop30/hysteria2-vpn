@@ -2,9 +2,31 @@
 
 # Самостоятельный сервер Hysteria 2
 
+[![Тесты](https://github.com/cop30/hysteria2-vpn/actions/workflows/test.yml/badge.svg)](https://github.com/cop30/hysteria2-vpn/actions/workflows/test.yml)
+[![Релиз](https://img.shields.io/github/v/release/cop30/hysteria2-vpn)](https://github.com/cop30/hysteria2-vpn/releases/latest)
+[![Лицензия: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Проект собирает Hysteria 2 из закреплённого upstream commit непосредственно на
 VPS и запускает его через Docker Compose. Серверные секреты, клиентские URI,
 QR-коды и резервные копии создаются на VPS и исключены из Git.
+
+Это воспроизводимая и проверяемая альтернатива непрозрачному однострочному
+установщику: исходный код upstream закреплён, изменения проверяются до
+активации, а предыдущая версия остаётся доступной для отката. Проект не
+заменяет защиту самого VPS.
+
+## Быстрый старт
+
+```bash
+git clone https://github.com/cop30/hysteria2-vpn.git
+cd hysteria2-vpn
+sudo ./docker-install.sh
+sudo INITIAL_CLIENT=iphone ./deploy.sh
+```
+
+Проверено на Ubuntu 24.04. Рекомендуемые клиенты: v2RAGE для iOS и Hiddify для
+Windows. Перед импортом созданного QR-кода прочитайте раздел
+[«Проверенные приложения-клиенты»](#проверенные-приложения-клиенты).
 
 ## Что делает проект
 

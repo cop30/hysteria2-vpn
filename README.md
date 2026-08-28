@@ -2,9 +2,31 @@
 
 # Hysteria 2 self-hosted stack
 
+[![Tests](https://github.com/cop30/hysteria2-vpn/actions/workflows/test.yml/badge.svg)](https://github.com/cop30/hysteria2-vpn/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/cop30/hysteria2-vpn)](https://github.com/cop30/hysteria2-vpn/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 This project builds Hysteria 2 from a pinned upstream commit on an Ubuntu VPS
 and runs it with Docker Compose. Server secrets, client URIs, QR codes and
 backups are generated on the VPS and excluded from Git.
+
+It is intended as a reproducible, auditable alternative to an opaque one-line
+installer: upstream source is pinned, changes are validated before activation,
+and the previous deployment remains available for rollback. It does not
+replace VPS hardening.
+
+## Quick start
+
+```bash
+git clone https://github.com/cop30/hysteria2-vpn.git
+cd hysteria2-vpn
+sudo ./docker-install.sh
+sudo INITIAL_CLIENT=iphone ./deploy.sh
+```
+
+Tested on Ubuntu 24.04. Recommended clients: v2RAGE on iOS and Hiddify on
+Windows. See [Tested client applications](#tested-client-applications) before
+importing the generated QR code.
 
 ## Properties
 
