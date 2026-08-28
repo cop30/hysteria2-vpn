@@ -130,40 +130,25 @@ sudo qrencode -t ANSIUTF8 -r clients/iphone.hy2
 ```
 
 Treat `.hy2` and QR files as full credentials. Never paste them into chat, Git,
-logs, or documentation. A 10-second keepalive is a reasonable starting point
-for iOS mobile networks. Enable client IPv6 only after verifying VPS IPv6
+logs, or documentation. Enable client IPv6 only after verifying VPS IPv6
 egress.
 
-### Shadowrocket on iPhone: field-tested stability profile
+### Tested client applications
 
-On a real iPhone, `Up Mb/s = 100`, `Down Mb/s = 100`, and `Keepalive = 10`
-noticeably improved Shadowrocket stability but did not eliminate intermittent
-failures. Similar behavior occurred on Windows, so this is a mitigation rather
-than a confirmed final fix or a universal value for every carrier:
+- **iOS:** [v2RAGE in the Russian App Store](https://apps.apple.com/ru/app/v2rage/id6761075402).
+  Import the generated `.hy2` URI or scan its QR code. Tests over mobile data
+  and a fixed-line ISP were stable with both Dutch and Finnish Hysteria 2
+  servers.
+- **Windows:** [Hiddify](https://github.com/hiddify/hiddify-app/releases).
+  Import the same URI or QR code. Long-running tests through an iPhone hotspot
+  and a fixed-line ISP were stable.
 
-1. Open the Hysteria 2 node editor and set `Keepalive` to `10` seconds.
-2. To reproduce the tested profile, set `Up Mb/s = 100` and
-   `Down Mb/s = 100`.
-3. Save the node and reconnect the VPN.
-
-Brutal treats the configured bandwidth as a target and compensates for loss by
-sending extra data. Hysteria's official documentation warns that setting it
-above the network's real capacity causes congestion, wasted traffic, and an
-unstable connection. A lower value is valid and acts as a speed limit. Treat
-`100/100` only as a value that improved this specific test; reduce it to a
-sustainable rate on a slower or congested network instead of copying it
-blindly.
-
-If explicit limits make the connection worse, return bandwidth to blank/auto;
-the client should then use non-Brutal congestion control (BBR by default) when
-Shadowrocket follows Hysteria core behavior.
-
-Routing and IPv6 were not part of the confirmed fix. IPv6 should still remain
-disabled until VPS IPv6 egress is verified. Keep Shadowrocket updated through
-the App Store. Do not change only the client
-port: `443/udp` must match the server, URI, UFW, and provider firewall. Do not
-disable Salamander/obfuscation for this project's profile; the server expects
-the matching secret, so a one-sided change breaks the connection.
+These are field-tested recommendations, not a guarantee for every device,
+carrier, ISP, or future application version. Keep the application current and
+test it on the networks you actually use. Do not change only the client port:
+`443/udp` must match the server, URI, UFW, and provider firewall. Do not disable
+Salamander/obfuscation for this project's profile; the server expects the
+matching secret, so a one-sided change breaks the connection.
 
 ## Operations
 
@@ -233,10 +218,9 @@ normally unnecessary.
 
 ### Client application updates
 
-This repository does **not** install or update Shadowrocket, Hiddify, or other
-client applications. Update them through their App Store, Google Play, or the
-specific application's official distribution channel. Updating the app does
-not require a new VPN password or QR code.
+This repository does **not** install or update client applications. Update
+v2RAGE through the App Store and Hiddify through its official distribution
+channel. Updating the app does not require a new VPN password or QR code.
 
 Read upstream compatibility notes before upgrading the server. If a release
 requires a newer client core, update and test one client first, then upgrade
@@ -313,3 +297,9 @@ shellcheck -x docker-install.sh deploy.sh add-client.sh remove-client.sh \
 MIT licensed. The Docker installer and parts of the operational guidance are
 adapted from [`seb0ch/vpn`](https://github.com/seb0ch/vpn); see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+The project is owned and published by **cop30**. Its architecture,
+implementation, deployment tooling, tests, and documentation were developed
+primarily by **OpenAI Codex**, working with cop30, who defined the requirements,
+provided the infrastructure, reviewed the results, and performed real-world
+client and network testing.
